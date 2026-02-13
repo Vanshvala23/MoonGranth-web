@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+/* Import fonts from Google */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;700&display=swap');
+
+@theme {
+  /* Define your Custom Brand Colors */
+  --color-brand-green: #2F5233;
+  --color-brand-earth: #8B5A2B;
+  --color-brand-cream: #F1F0E8;
+  --color-brand-saffron: #E6A546;
+  --color-brand-dark: #1A2F1D;
+
+  /* Define your Fonts */
+  --font-sans: "Inter", sans-serif;
+  --font-serif: "Playfair Display", serif;
+}
+
+/* Apply the cream background to the whole body */
+body {
+  background-color: var(--color-brand-cream);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* --- CUSTOM SCROLL ANIMATIONS --- */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- THE FIX IS HERE --- */
+/* We combined the animation directly into this class so it runs immediately */
+.opacity-0-start {
+  opacity: 0; /* Start hidden */
+  animation: fadeInUp 0.8s ease-out forwards; /* Animate visible immediately */
+}
+
+/* Simple Fade In */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+/* Fade In Up Helper */
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+/* Delay Utilities */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-700 { animation-delay: 700ms; }
