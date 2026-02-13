@@ -26,7 +26,7 @@ const Contact = () => {
 
     try {
       // Send POST request to backend
-      await axios.post('http://localhost:5000/api/contact', formData);
+      await axios.post('https://moon-granth-backend.vercel.app/api/contact', formData);
 
       setStatus('success');
 
