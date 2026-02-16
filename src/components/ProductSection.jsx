@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMoolContext } from '../context/MoolContext';
 import axios from 'axios';
-import { ShoppingCart, Package } from 'lucide-react';
+import { ShoppingCart, Package, ImageOff } from 'lucide-react';
 
 // Helper function for fallback images
 const getFallbackImage = (productName) => {
@@ -14,6 +14,7 @@ const getFallbackImage = (productName) => {
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
   const { addToCart, user } = useMoolContext();
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const handleView = () => {
@@ -25,16 +26,20 @@ const ProductCard = ({ product }) => {
     e.stopPropagation();
     if (user) {
       addToCart(product);
+      alert("Added to cart!");
     } else {
       alert("Please log in to add items to your cart.");
       navigate('/login', { state: { from: { pathname: '/' } } });
     }
   };
 
-  // Get image with fallback
-  const imageSrc = product.images && product.images.length > 0
+  // Get image with fallback - ALWAYS use fallback if no valid image
+  const imageSrc = product.images && product.images.length > 0 && product.images[0]
     ? product.images[0]
     : getFallbackImage(product.name);
+
+  // Log for debugging
+  console.log('Product:', product.name, 'Image URL:', imageSrc);
 
   return (
     <div className="group relative bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col h-full">
@@ -44,18 +49,43 @@ const ProductCard = ({ product }) => {
         className="h-64 w-full overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 relative cursor-pointer"
         onClick={handleView}
       >
-        <img
-          src={imageSrc}
-          alt={product.name}
-          className="h-full w-full object-cover object-center transform group-hover:scale-110 transition-transform duration-700 ease-in-out"
-          onError={(e) => { 
-            if (!imageError) {
-              setImageError(true);
-              e.target.onerror = null; // Prevent infinite loop
-              e.target.src = getFallbackImage(product.name);
-            }
-          }}
-        />
+        {!imageLoaded && !imageError && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-600"></div>
+          </div>
+        )}
+        
+        {imageError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-orange-600">
+            <ImageOff className="w-16 h-16 mb-2" />
+            <p className="text-sm font-medium">{product.name}</p>
+          </div>
+        ) : (
+          <img
+            src={imageSrc}
+            alt={product.name}
+            className={`h-full w-full object-cover object-center transform group-hover:scale-110 transition-all duration-700 ease-in-out ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoad={() => {
+              console.log('Image loaded successfully:', imageSrc);
+              setImageLoaded(true);
+            }}
+            onError={(e) => { 
+              console.error('Image failed to load:', imageSrc);
+              if (!imageError) {
+                setImageError(true);
+                e.target.onerror = null;
+                // Try fallback one more time
+                const fallback = getFallbackImage(product.name);
+                if (e.target.src !== fallback) {
+                  e.target.src = fallback;
+                  setImageError(false);
+                }
+              }
+            }}
+          />
+        )}
         
         {/* Badges */}
         {product.isNew && (
@@ -147,6 +177,7 @@ const ProductSection = () => {
       try {
         setLoading(true);
         const res = await axios.get('https://moon-granth-backend.vercel.app/api/products');
+        console.log('Fetched products:', res.data); // Debug log
         setProducts(res.data || []);
         setError(null);
       } catch (err) {
