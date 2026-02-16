@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useMoolContext } from "../context/MoolContext";
 import api from "../utils/axios";
-import { ShoppingCart, Minus, Plus, Star, Package, TruckIcon, Shield, Heart, ChevronLeft } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Star, Package, TruckIcon, Shield, Heart, ChevronLeft, ImageOff } from "lucide-react";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -28,6 +28,12 @@ const ProductDetails = () => {
     { user: "Priya K.", text: "High quality product. Highly recommend!", rating: 4 },
   ]);
 
+  // ================= HELPER: Generate Fallback Image =================
+  const getFallbackImage = (productName) => {
+    const encodedName = encodeURIComponent(productName || 'Product');
+    return `https://placehold.co/600x600/f97316/white?text=${encodedName}`;
+  };
+
   // ================= FETCH PRODUCT =================
   useEffect(() => {
     const fetchData = async () => {
@@ -37,7 +43,10 @@ const ProductDetails = () => {
         const res = await api.get(`/products/${id}`);
         const prod = res.data;
         setProduct(prod);
-        setMainImage(prod.images?.[0] || "/no-image.png");
+        
+        // Set main image with fallback
+        const firstImage = prod.images?.[0];
+        setMainImage(firstImage || getFallbackImage(prod.name));
 
         const all = await api.get("/products");
         const related = all.data
@@ -142,18 +151,24 @@ const ProductDetails = () => {
           
           {/* LEFT: IMAGE GALLERY */}
           <div className="space-y-4">
-            <div className="relative rounded-2xl overflow-hidden bg-white shadow-xl group">
-              <img
-                src={mainImage}
-                alt={product.name}
-                onError={(e) => {
-                  if (!imageError) {
-                    setImageError(true);
-                    e.target.src = 'https://via.placeholder.com/600x600/F97316/FFFFFF?text=Product+Image';
-                  }
-                }}
-                className="w-full h-[500px] object-cover"
-              />
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 shadow-xl group">
+              {imageError ? (
+                <div className="w-full h-[500px] flex flex-col items-center justify-center text-orange-600">
+                  <ImageOff className="w-24 h-24 mb-4" />
+                  <p className="text-xl font-semibold">{product.name}</p>
+                </div>
+              ) : (
+                <img
+                  src={mainImage}
+                  alt={product.name}
+                  onError={(e) => {
+                    console.error("Image failed to load:", mainImage);
+                    e.target.onerror = null; // Prevent infinite loop
+                    e.target.src = getFallbackImage(product.name);
+                  }}
+                  className="w-full h-[500px] object-cover"
+                />
+              )}
               
               {/* Wishlist Button */}
               <button
@@ -171,6 +186,13 @@ const ProductDetails = () => {
                   Only {product.stock} left!
                 </div>
               )}
+
+              {/* New Badge */}
+              {product.isNew && (
+                <div className="absolute bottom-4 left-4 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                  New Arrival
+                </div>
+              )}
             </div>
 
             {/* Thumbnail Images */}
@@ -183,7 +205,8 @@ const ProductDetails = () => {
                     alt={`View ${i + 1}`}
                     onClick={() => setMainImage(img)}
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/100x100/F97316/FFFFFF?text=Img';
+                      e.target.onerror = null;
+                      e.target.src = getFallbackImage(`${product.name} ${i + 1}`);
                     }}
                     className={`w-24 h-24 object-cover cursor-pointer rounded-xl transition-all ${
                       mainImage === img
@@ -233,15 +256,25 @@ const ProductDetails = () => {
             <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-2xl p-6">
               <p className="text-sm text-gray-600 mb-1">Price</p>
               <p className="text-4xl font-bold text-orange-600">
-                ₹{product.price.toLocaleString()}
+                ₹{product.price?.toLocaleString() || product.price}
               </p>
+            </div>
+
+            {/* Stock Info */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700 font-medium">Availability:</span>
+                <span className={`font-bold ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
+                </span>
+              </div>
             </div>
 
             {/* Description */}
             <div className="bg-white rounded-2xl p-6 shadow-md">
               <h3 className="font-semibold text-lg mb-3 text-gray-800">Product Description</h3>
               <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-                {product.description}
+                {product.description || 'No description available.'}
               </p>
             </div>
 
@@ -251,14 +284,16 @@ const ProductDetails = () => {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-orange-100 rounded-xl transition-colors"
+                  disabled={product.stock === 0}
+                  className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-orange-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Minus className="w-5 h-5" />
                 </button>
                 <span className="text-2xl font-bold w-16 text-center">{quantity}</span>
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-orange-100 rounded-xl transition-colors"
+                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  disabled={product.stock === 0}
+                  className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-orange-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -273,7 +308,7 @@ const ProductDetails = () => {
                 className="flex-1 bg-white border-2 border-orange-600 text-orange-600 px-8 py-4 rounded-xl font-semibold hover:bg-orange-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="w-5 h-5" />
-                Add to Cart
+                {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
               </button>
 
               <button
@@ -281,21 +316,21 @@ const ProductDetails = () => {
                 disabled={product.stock === 0}
                 className="flex-1 bg-gradient-to-r from-orange-600 to-amber-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-orange-700 hover:to-amber-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Buy Now
+                {product.stock === 0 ? 'Unavailable' : 'Buy Now'}
               </button>
             </div>
 
             {/* Features */}
             <div className="grid grid-cols-3 gap-4 pt-6">
-              <div className="text-center p-4 bg-white rounded-xl shadow-sm">
+              <div className="text-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
                 <TruckIcon className="w-8 h-8 text-orange-600 mx-auto mb-2" />
                 <p className="text-xs text-gray-600 font-medium">Free Shipping</p>
               </div>
-              <div className="text-center p-4 bg-white rounded-xl shadow-sm">
+              <div className="text-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
                 <Shield className="w-8 h-8 text-orange-600 mx-auto mb-2" />
                 <p className="text-xs text-gray-600 font-medium">Secure Payment</p>
               </div>
-              <div className="text-center p-4 bg-white rounded-xl shadow-sm">
+              <div className="text-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
                 <Package className="w-8 h-8 text-orange-600 mx-auto mb-2" />
                 <p className="text-xs text-gray-600 font-medium">Easy Returns</p>
               </div>
@@ -409,13 +444,14 @@ const ProductDetails = () => {
                   onClick={() => navigate(`/product/${p._id}`)}
                   className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group"
                 >
-                  <div className="relative overflow-hidden bg-gray-100 aspect-square">
+                  <div className="relative overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 aspect-square">
                     <img
-                      src={p.images?.[0] || "/no-image.png"}
+                      src={p.images?.[0] || getFallbackImage(p.name)}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       alt={p.name}
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/300x300/F97316/FFFFFF?text=No+Image';
+                        e.target.onerror = null;
+                        e.target.src = getFallbackImage(p.name);
                       }}
                     />
                   </div>
@@ -424,7 +460,7 @@ const ProductDetails = () => {
                       {p.name}
                     </h3>
                     <p className="text-2xl font-bold text-orange-600">
-                      ₹{p.price.toLocaleString()}
+                      ₹{p.price?.toLocaleString() || p.price}
                     </p>
                   </div>
                 </div>
